@@ -2,6 +2,23 @@
 
 Running log of defects found and fixes/iterations landed. Newest first.
 
+## BUG-001 — Hardcoded home-directory paths leaked into the public repo (2026-06-17)
+**Symptom:** after going public (ITER-002), the maintainer's macOS home path (`/Users/<user>/…`,
+exposing the local username) was visible in `README.md` ("from anywhere" install example) and
+`skills/premiere-grade-bot/SKILL.md` (a `cd`
+example + a `.cube` browse-path example). Spotted by Joona reviewing the rendered README.
+**Root cause:** docs were authored against the live local checkout and copied absolute paths
+verbatim. `How it works.html` already used `/path/to/gradekit` (correct); the older README/SKILL
+text predated that convention.
+**Fix:** genericized all home paths to `/path/to/gradekit` and `~/Downloads/look.cube`; also
+dropped the project-specific `outlast-ep1-*.cube` example names from the public skill doc.
+`LICENSE` keeps "Joona Tyrninoksa" — that's the intentional MIT copyright attribution, not a leak.
+**Prevention:** never paste an absolute `/Users/<name>/…` path into a file that ships in a repo —
+use `/path/to/…`, `~/…`, or `$PWD`. (Worth a pre-publish grep: `git grep -nE "/Users/"`.)
+**Note:** this scrubs the working tree; the string still exists in git history (commits before
+this one) — a history rewrite + force-push is the only way to purge that, and needs explicit
+sign-off + a backup first.
+
 ## ITER-002 — De-branded, made public, shipped a manual (2026-06-17)
 **What:** Released gradekit as a standalone OSS tool and gave it a self-contained manual.
 - **De-brand + publish:** renamed the repo `lovespark-gradekit` → `gradekit` and flipped it

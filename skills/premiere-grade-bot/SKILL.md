@@ -52,7 +52,7 @@ so Premiere access covers it.
    cd /path/to/gradekit && . .venv/bin/activate
    python3 -m gradekit analyze "<CLIP.mov>" --lut "<OUT>.cube"
    ```
-   (e.g. existing LUTs: `~/Downloads/outlast-ep1-fix.cube`, `~/Downloads/outlast-ep1-fix-take2.cube`)
+   (e.g. `~/Downloads/look.cube`)
 
 Because this writes into the user's live project, **never start clicking until the user
 confirms the project/clip is ready.** When unsure what's selected, screenshot and ask.
@@ -85,7 +85,7 @@ confirms the project/clip is ready.** When unsure what's selected, screenshot an
    c. Never drag. If a field won't take focus, double-click it, retry once, else report.
    **— or Method B (load the .cube):** open **Creative**, click the **Look** dropdown →
    **Browse…**, in the open panel press **Cmd+Shift+G**, `type` the `.cube` path
-   (e.g. `/path/to/Downloads/outlast-ep1-fix.cube`), **Return**, then **Open**.
+   (e.g. `~/Downloads/look.cube`), **Return**, then **Open**.
 5. **Verify.** Screenshot. Confirm the Program monitor visibly changed (cooler, less blown
    out) and the Basic fields show the typed numbers (Method A) or the Look shows the LUT
    (Method B). If nothing changed, report — do not retry blindly.
