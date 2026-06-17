@@ -1,0 +1,7 @@
+numpy>=1.24
+Pillow>=10.0
+
+# Optional — ONLY needed to upgrade automatic face detection (an OpenCV Haar cascade).
+# gradekit works fine without it: with no --skin region it falls back to a pure-numpy
+# YCbCr skin detector, so a missing cv2 is never fatal.
+# opencv-python>=4.8

@@ -1,0 +1,13 @@
+__pycache__/
+*.pyc
+*.pyo
+.DS_Store
+*.egg-info/
+build/
+dist/
+.venv/
+.pytest_cache/
+
+# Generated sample outputs (regenerate with tests/make_test_frame.py)
+/samples/*
+!/samples/.gitkeep

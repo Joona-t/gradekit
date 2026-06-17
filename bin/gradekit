@@ -1,0 +1,21 @@
+#!/usr/bin/env python3
+"""Zero-install launcher for gradekit.
+
+Run it straight from the repo:   ./bin/gradekit analyze clip.mp4 --neutral 100,100,40,40
+Or symlink it onto your PATH to get a bare `gradekit` command:
+    ln -s "$PWD/bin/gradekit" /opt/homebrew/bin/gradekit
+
+We use realpath so the symlink resolves back to the real repo location.
+"""
+import os
+import sys
+
+_HERE = os.path.realpath(__file__)
+_REPO_ROOT = os.path.dirname(os.path.dirname(_HERE))
+if _REPO_ROOT not in sys.path:
+    sys.path.insert(0, _REPO_ROOT)
+
+from gradekit.cli import main  # noqa: E402 (sys.path must be set before this import)
+
+if __name__ == "__main__":
+    raise SystemExit(main(sys.argv[1:]))

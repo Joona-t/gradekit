@@ -1,0 +1,28 @@
+[build-system]
+requires = ["setuptools>=68"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "gradekit"
+version = "0.1.0"
+description = "Local CLI color-analysis tool that diagnoses a frame and bakes the fix into a .cube LUT for Premiere Lumetri."
+readme = "README.md"
+requires-python = ">=3.11"
+license = { text = "MIT" }
+authors = [{ name = "Joona" }]
+dependencies = [
+    "numpy>=1.24",
+    "Pillow>=10.0",
+]
+
+[project.optional-dependencies]
+# `pip install .[face]` upgrades automatic face detection. Not required.
+face = ["opencv-python>=4.8"]
+
+[project.scripts]
+# `pipx install .` (or `pip install .`) puts a bare `gradekit` command on your PATH.
+gradekit = "gradekit.cli:main"
+
+[tool.setuptools.packages.find]
+where = ["."]
+include = ["gradekit*"]
