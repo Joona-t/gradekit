@@ -11,3 +11,6 @@ dist/
 # Generated sample outputs (regenerate with tests/make_test_frame.py)
 /samples/*
 !/samples/.gitkeep
+
+# local preview/dev config
+.claude/

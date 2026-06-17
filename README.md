@@ -9,6 +9,11 @@ It's also meant to be read. The color math is written out by hand and commented 
 *why* — see [`gradekit/colorscience.py`](gradekit/colorscience.py). numpy is used only as a
 fast calculator, never as a color-science black box.
 
+> **New here? Open [`How it works.html`](How%20it%20works.html)** — a single self-contained page
+> that walks through the color science, the CLI, how to apply the `.cube` in *any* editor
+> (Premiere / DaVinci Resolve / Final Cut / After Effects / OBS / ffmpeg), and how to drive
+> gradekit from your AI agents.
+
 ```
 gradekit  —  shot.mp4  (video frame @ 1.40s)
 ────────────────────────────────────────────────────────────────

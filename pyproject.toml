@@ -4,8 +4,8 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "gradekit"
-version = "0.1.0"
-description = "Local CLI color-analysis tool that diagnoses a frame and bakes the fix into a .cube LUT for Premiere Lumetri."
+version = "0.1.1"
+description = "Local CLI color-analysis tool that diagnoses a frame and bakes the fix into an editor-agnostic .cube LUT (Premiere, Resolve, FCP, ffmpeg…)."
 readme = "README.md"
 requires-python = ">=3.11"
 license = { text = "MIT" }
