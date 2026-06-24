@@ -102,15 +102,57 @@ def extract_frame(path: str, t: float | None = None):
             os.unlink(tmp.name)
 
 
-def load_frame(path: str, t: float | None = None):
+def _luma99(arr01: np.ndarray) -> float:
+    """99.5th-percentile Rec.709 luma of an encoded RGB [0,1] frame — a robust 'how close to
+    clipping are the brightest meaningful pixels' score (ignores the top 0.5% of speckle)."""
+    luma = 0.2126 * arr01[..., 0] + 0.7152 * arr01[..., 1] + 0.0722 * arr01[..., 2]
+    return float(np.percentile(luma, 99.5))
+
+
+def extract_brightest_frame(path: str, n: int = 9):
+    """Sample `n` frames across the clip and return (array, t) for the BRIGHTEST one.
+
+    Why: gradekit grades a SINGLE frame. On a clip whose subject brightness varies (a
+    light-wardrobe subject leaning in and out of the light, hands up vs down), grading an
+    'average' frame UNDER-prescribes highlight/white recovery, so the bright frames clip to
+    a featureless blob. Grading the brightest frame makes the highlight rolloff protect the
+    worst case — nothing clips, calmer frames just sit a touch lower. Falls back to the default
+    representative frame if duration is unknown or n<=1.
+    """
+    dur = ffprobe_duration(path)
+    if not dur or n <= 1:
+        return extract_frame(path)
+    ts = [dur * (0.05 + 0.90 * i / (n - 1)) for i in range(n)]  # span the body, skip slates
+    best = None  # (score, arr, t)
+    for t in ts:
+        try:
+            arr, used = extract_frame(path, t)
+        except Exception:
+            continue
+        score = _luma99(arr)
+        if best is None or score > best[0]:
+            best = (score, arr, used)
+    if best is None:
+        return extract_frame(path)
+    return best[1], best[2]
+
+
+def load_frame(path: str, t: float | None = None, brightest: int | None = None):
     """Return (rgb01 array HxWx3, info dict). Decides image vs video by extension,
-    falling back to trying both if the extension is unfamiliar."""
+    falling back to trying both if the extension is unfamiliar.
+
+    `brightest=N` (video only) samples N frames and grades the brightest — see
+    extract_brightest_frame. `t` takes precedence: an explicit timestamp is honored as-is.
+    """
     if not os.path.exists(path):
         raise FileNotFoundError(f"input not found: {path}")
 
     if is_image(path):
         return load_image_rgb(path), {"kind": "image", "t": None}
     if is_video(path):
+        if brightest and t is None:
+            arr, used_t = extract_brightest_frame(path, brightest)
+            return arr, {"kind": "video", "t": used_t, "picked": "brightest"}
         arr, used_t = extract_frame(path, t)
         return arr, {"kind": "video", "t": used_t}
 
@@ -118,6 +160,9 @@ def load_frame(path: str, t: float | None = None):
     try:
         return load_image_rgb(path), {"kind": "image", "t": None}
     except Exception:
+        if brightest and t is None:
+            arr, used_t = extract_brightest_frame(path, brightest)
+            return arr, {"kind": "video", "t": used_t, "picked": "brightest"}
         arr, used_t = extract_frame(path, t)
         return arr, {"kind": "video", "t": used_t}
 

@@ -2,6 +2,28 @@
 
 Running log of defects found and fixes/iterations landed. Newest first.
 
+## ITER-003 — `--brightest`: grade the worst-case frame, not an "average" one (2026-06-25)
+**What hurt:** a 20-min talking-head (light furry hood + cream sweater, varying brightness as the
+subject leans in/out and raises hands) was graded off gradekit's default ~10%-in frame. On that calm
+frame gradekit reported **"✓ Exposure and contrast look fine"**, so the applied grade used a gentle
+Highlights −12 / Shadows +25. Result on the BRIGHT frames: the white wardrobe clipped to a featureless
+white blob and the image looked washed out. Joona (correctly) called the grade "horrible".
+**Root cause:** gradekit analyzes a SINGLE frame. If that frame isn't the brightest, highlight/exposure
+problems that only appear on the bright frames are invisible, so the recommendation under-corrects.
+**Fix (in code):** added `--brightest [N]` (default N=9). It samples N frames across the clip
+(`extract_brightest_frame`), scores each by 99.5th-pct Rec.709 luma (`_luma99`, ignores speckle), and
+grades the BRIGHTEST — so highlight rolloff protects the worst case; calmer frames just sit a touch lower.
+**Verified on IMG_7889:** default frame @133s → "Exposure looks fine"; `--brightest` jumped to @817s →
+"✗ Overexposed, Exposure −0.3". Tests: 24 passed (added `tests/test_frameio.py` for the luma scoring).
+**Standing grading rule (also in the LoveSpark notes):** for a bright / light-wardrobe subject, grade the
+BRIGHTEST frame and recover highlights AGGRESSIVELY (Whites/Highlights −40…−60, restrained Shadows ≈+6,
+slight Blacks for contrast) — gentle values leave a clipped blob. The fix that worked here: Temp −25,
+Tint −4, Contrast +12, Highlights −60, Whites −45, Shadows +6, Blacks −6.
+**Still open (v_next):** gradekit recommends Whites/Highlights pulls only when `blown_pct` is high; a
+"bright-but-not-clipping" subject (hood at ~90–95%, not 255) still reads as a blob yet trips no
+recommendation. Bias the highlight recommendation on the brightest frame's white-point, not just on
+the literal clip count.
+
 ## BUG-002 — Exposure blows out a bright subject on a dark background (2026-06-24)
 **Symptom:** on a real shot (a person in a white hoodie in front of a dark bookshelf),
 gradekit prescribed Exposure **+1.5 stops**, which clipped the subject to pure white when

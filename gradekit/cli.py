@@ -50,6 +50,10 @@ def build_parser() -> argparse.ArgumentParser:
     a.add_argument("input", help="path to a video or image")
     a.add_argument("--t", type=float, default=None,
                    help="grab the frame at this timestamp in seconds (video only; default ~10%% in)")
+    a.add_argument("--brightest", type=int, nargs="?", const=9, default=None, metavar="N",
+                   help="sample N frames (default 9) and grade the BRIGHTEST — so highlight "
+                        "recovery protects the worst case on bright/light-wardrobe subjects "
+                        "(video only; ignored if --t is given)")
     a.add_argument("--neutral", type=parse_region, default=None,
                    help="region 'x,y,w,h' that should read neutral white/gray (drives precise WB)")
     a.add_argument("--skin", type=parse_region, default=None,
@@ -68,8 +72,8 @@ def cmd_analyze(args) -> int:
         print("error: --size must be >= 2", file=sys.stderr)
         return 2
 
-    # 1) Load a single frame as encoded RGB in [0,1].
-    arr_encoded, info = frameio.load_frame(args.input, t=args.t)
+    # 1) Load a single frame as encoded RGB in [0,1]. --brightest grades the worst-case frame.
+    arr_encoded, info = frameio.load_frame(args.input, t=args.t, brightest=args.brightest)
     img_linear = cs.srgb_to_linear(arr_encoded)
 
     # 2) White balance — neutral patch if given, else gray-world.
