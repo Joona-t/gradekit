@@ -25,6 +25,13 @@ from . import colorscience as cs
 # linear light that's ~0.18; we aim the frame's median luminance toward it.
 TARGET_LINEAR_MEDIAN = 0.18
 
+# Cap any positive exposure lift so the brightest meaningful detail (99.5th pct of linear
+# luma) stays below this ceiling. Without it, a small BRIGHT subject on a large DARK field
+# pulls the median down, which prescribes a big lift that blows the subject to pure white
+# (the "bright-subject-on-dark-background" trap). Leaving headroom below 1.0 keeps highlights
+# bright but unclipped.
+HILIGHT_CEIL = 0.90
+
 CLIP_HI = 0.99   # encoded luma at/above this counts as a blown highlight
 CLIP_LO = 0.01   # encoded luma at/below this counts as a crushed black
 
@@ -64,6 +71,16 @@ def analyze_exposure(img_linear: np.ndarray) -> ExposureResult:
     # Exposure in stops = log2(target / current). Guard the log against a black frame.
     safe_median = max(median_lin, 1e-4)
     stops = float(np.clip(np.log2(TARGET_LINEAR_MEDIAN / safe_median), -3.0, 3.0))
+
+    # Highlight-safe cap: a small bright subject in front of a large dark field pulls the
+    # MEDIAN down, so the line above would prescribe a big positive lift that blows the
+    # subject to pure white. Cap any *positive* lift so the brightest meaningful detail
+    # (99.5th pct of linear luma) lands no higher than HILIGHT_CEIL. Pulls-down (negative
+    # stops, for over-bright frames) are left untouched.
+    if stops > 0.0:
+        p_high_lin = float(np.percentile(luma_lin, 99.5))
+        max_safe_lift = float(np.log2(HILIGHT_CEIL / max(p_high_lin, 1e-4)))
+        stops = max(0.0, min(stops, max_safe_lift))
 
     # --- Heuristic Lumetri recommendations. All are STARTING POINTS, clamped to sane ---
     # --- ranges. Severity-to-slider scaling is intentionally gentle and documented.   ---
