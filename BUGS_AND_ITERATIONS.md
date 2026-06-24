@@ -2,6 +2,21 @@
 
 Running log of defects found and fixes/iterations landed. Newest first.
 
+## BUG-002 — Exposure blows out a bright subject on a dark background (2026-06-24)
+**Symptom:** on a real shot (a person in a white hoodie in front of a dark bookshelf),
+gradekit prescribed Exposure **+1.5 stops**, which clipped the subject to pure white when
+applied in Premiere. The grade was unusable and had to be hand-corrected.
+**Root cause:** `analyze_exposure` meters exposure off the **whole-frame median** luminance
+(`np.median(luma_lin)` → `log2(0.18/median)`). A small bright subject in front of a large
+dark field drags the median down, so the math reads the frame as badly underexposed and
+prescribes a big lift — which blows the (already bright) subject.
+**Fix:** added a **highlight-safe cap** (`exposure.py`): any *positive* lift is capped so the
+brightest meaningful detail (99.5th pct of linear luma) lands no higher than `HILIGHT_CEIL`
+(0.90). Pulls-down for genuinely over-bright frames are untouched. Verified: the same shot now
+reports "✓ Exposure and contrast look fine" instead of +1.5; 22/22 tests still green.
+**Prevention:** exposure must never push existing highlights into clipping. (Future v_next:
+also bias the target toward the detected skin/subject region, since gradekit already finds it.)
+
 ## BUG-001 — Hardcoded home-directory paths leaked into the public repo (2026-06-17)
 **Symptom:** after going public (ITER-002), the maintainer's macOS home path (`/Users/<user>/…`,
 exposing the local username) was visible in `README.md` ("from anywhere" install example) and
