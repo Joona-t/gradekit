@@ -4,7 +4,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "gradekit"
-version = "0.1.2"
+version = "0.1.3"
 description = "Local CLI color-analysis tool that diagnoses a frame and bakes the fix into an editor-agnostic .cube LUT (Premiere, Resolve, FCP, ffmpeg…)."
 readme = "README.md"
 requires-python = ">=3.11"
