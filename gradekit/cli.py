@@ -24,6 +24,19 @@ from . import skin as skin_mod
 from . import whitebalance as wb_mod
 
 
+def _log_decision(tool, subject, action, params):
+    """Best-effort append to the shared grade/cut decision ledger. Never raises."""
+    try:
+        import importlib.util
+        p = os.path.expanduser("~/.claude/data/grade-decisions/log_decision.py")
+        spec = importlib.util.spec_from_file_location("log_decision", p)
+        m = importlib.util.module_from_spec(spec)
+        spec.loader.exec_module(m)
+        m.log(tool=tool, subject=subject, action=action, params=params)
+    except Exception:
+        pass
+
+
 def parse_region(s: str):
     """Parse a 'x,y,w,h' string into an (int, int, int, int) tuple."""
     parts = s.split(",")
@@ -119,6 +132,13 @@ def cmd_analyze(args) -> int:
         "preview_path": preview_path, "contrast": args.contrast,
     }
     report_mod.print_report(ctx)
+    _log_decision("gradekit", os.path.basename(args.input), "analyze",
+                  {"temperature": round(getattr(wb, "lumetri_temp", 0) or 0, 1),
+                   "tint": round(getattr(wb, "lumetri_tint", 0) or 0, 1),
+                   "wb_confidence": getattr(wb, "confidence", None),
+                   "exposure_stops": round(ex.exposure_stops, 2),
+                   "contrast": args.contrast, "lut": lut_path,
+                   "brightest": bool(getattr(args, "brightest", False)), "lut_ok": ok})
     return 0 if ok else 1
 
 
