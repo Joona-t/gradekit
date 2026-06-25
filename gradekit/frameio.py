@@ -15,6 +15,7 @@ import json
 import os
 import shutil
 import subprocess
+import sys
 import tempfile
 
 import numpy as np
@@ -22,6 +23,15 @@ from PIL import Image
 
 IMAGE_EXTS = {".png", ".jpg", ".jpeg", ".tif", ".tiff", ".bmp", ".webp"}
 VIDEO_EXTS = {".mp4", ".mov", ".mkv", ".m4v", ".avi", ".webm", ".m2ts", ".mts"}
+
+# Transfer functions that mean the clip is HDR. gradekit (like ffmpeg's plain rgb24 decode)
+# treats the decoded values as SDR — so the baked .cube is tuned to that SDR interpretation.
+# An NLE with color management (Premiere, Resolve) instead tone-maps the HDR source brighter,
+# and the same cube then blows out the highlights. See KI / the 2026-06-25 IMG_7889 saga.
+_HDR_TRANSFERS = {
+    "arib-std-b67": "HLG (Hybrid Log-Gamma)",
+    "smpte2084": "PQ (SMPTE ST 2084 / HDR10)",
+}
 
 
 def _ext(path: str) -> str:
@@ -63,6 +73,42 @@ def ffprobe_duration(path: str):
         return float(dur) if dur is not None else None
     except Exception:
         return None
+
+
+def probe_color_transfer(path: str):
+    """Return the clip's color transfer characteristic (e.g. 'arib-std-b67', 'bt709'), or None."""
+    if shutil.which("ffprobe") is None:
+        return None
+    try:
+        out = subprocess.run(
+            ["ffprobe", "-v", "error", "-select_streams", "v:0",
+             "-show_entries", "stream=color_transfer", "-of", "json", path],
+            capture_output=True, text=True, timeout=30,
+        )
+        streams = json.loads(out.stdout or "{}").get("streams", [])
+        return (streams[0].get("color_transfer") if streams else None) or None
+    except Exception:
+        return None
+
+
+def warn_if_hdr(path: str):
+    """If the clip is HDR (HLG/PQ), print a one-time warning and return the transfer name.
+
+    gradekit grades the SDR-decoded frame, so the baked cube is correct for an SDR pipeline
+    (ffmpeg lut3d, gradekit's own preview). A color-managed NLE tone-maps the HDR source
+    brighter and the same cube clips — so the user must tell the NLE to treat the clip as
+    Rec.709 first. We surface that here instead of letting it bite silently downstream."""
+    xfer = probe_color_transfer(path)
+    if xfer in _HDR_TRANSFERS:
+        print(
+            f"gradekit: ⚠ HDR source detected — transfer '{xfer}' ({_HDR_TRANSFERS[xfer]}).\n"
+            f"  The grade is baked for an SDR decode (matches ffmpeg lut3d / this preview).\n"
+            f"  In Premiere/Resolve, set the clip's color space to Rec.709 BEFORE applying the\n"
+            f"  .cube (Premiere: Modify ▸ Color ▸ Override Media Color Space ▸ Rec. 709), or the\n"
+            f"  NLE's HDR tone-map will brighten the base and the LUT will blow out highlights.",
+            file=sys.stderr,
+        )
+    return xfer
 
 
 def extract_frame(path: str, t: float | None = None):
@@ -150,11 +196,12 @@ def load_frame(path: str, t: float | None = None, brightest: int | None = None):
     if is_image(path):
         return load_image_rgb(path), {"kind": "image", "t": None}
     if is_video(path):
+        hdr = warn_if_hdr(path)                       # SDR-vs-NLE caveat, surfaced early
         if brightest and t is None:
             arr, used_t = extract_brightest_frame(path, brightest)
-            return arr, {"kind": "video", "t": used_t, "picked": "brightest"}
+            return arr, {"kind": "video", "t": used_t, "picked": "brightest", "hdr": hdr}
         arr, used_t = extract_frame(path, t)
-        return arr, {"kind": "video", "t": used_t}
+        return arr, {"kind": "video", "t": used_t, "hdr": hdr}
 
     # Unknown extension: try as image, then as video.
     try:

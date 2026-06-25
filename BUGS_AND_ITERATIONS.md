@@ -2,6 +2,28 @@
 
 Running log of defects found and fixes/iterations landed. Newest first.
 
+## ITER-004 — Warn when the source is HDR (HLG/PQ) — the real blow-out root cause (2026-06-25)
+**What hurt:** the same IMG_7889 talking-head was graded with gradekit and the cube looked PERFECT in
+an ffmpeg `lut3d` render (measured blown%=0.00, p99.5≈0.85) — but the IDENTICAL cube applied in Premiere
+2026 blew the bright subject out to a featureless white blob. Hours were lost re-grading, assuming the
+grade was wrong. It wasn't.
+**Root cause:** the footage is **iPhone Dolby Vision / HLG HDR** — `color_transfer=arib-std-b67`,
+`bt2020` primaries, 10-bit, DOVI profile 8.4. ffmpeg's plain `rgb24` decode (and gradekit's preview)
+treat the values as SDR, so the baked cube is correct *for an SDR pipeline*. Premiere, being
+color-managed, recognizes the clip as **Rec. 2100 HLG** and tone-maps it brighter before the LUT runs —
+so the same SDR-tuned cube clips the highlights. The grade was never the problem; the NLE's HDR
+interpretation was. The whole night's "horrible grade" saga had this single silent cause underneath.
+**Fix (patch > workaround):** `frameio.probe_color_transfer()` + `warn_if_hdr()` — on every video load,
+gradekit now ffprobes the transfer and, if it's HLG (`arib-std-b67`) or PQ (`smpte2084`), prints a
+prominent stderr warning that the cube is baked for an SDR decode and that in a color-managed NLE the
+clip must be set to **Rec. 709 first** (Premiere: *Modify ▸ Color ▸ Override Media Color Space ▸ Rec. 709*).
+The transfer is also returned in `load_frame`'s info dict (`"hdr"`). Non-HDR clips and ffprobe-less
+machines are unaffected (returns `None`, no warning). The fix that unblocked the live edit: that exact
+Rec. 709 override on the master clip — verified the neutral-soft grade then matched the ffmpeg render
+across all 143 timeline segments.
+**Prevention:** never assume an iPhone/mirrorless clip is SDR — HLG/PQ sources need the NLE told to treat
+them as Rec.709 before an SDR `.cube`, or build the grade in the NLE's managed HDR pipeline instead.
+
 ## ITER-003 — `--brightest`: grade the worst-case frame, not an "average" one (2026-06-25)
 **What hurt:** a 20-min talking-head (light furry hood + cream sweater, varying brightness as the
 subject leans in/out and raises hands) was graded off gradekit's default ~10%-in frame. On that calm
